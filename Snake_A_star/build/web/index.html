@@ -248,7 +248,7 @@ config = {
 
 </script>
 
-    <title>snake_a_star</title>
+    <title>Snake AI - Pathfinding Algorithms</title>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -265,79 +265,328 @@ config = {
     <link rel="icon" type="image/png" href="favicon.png" sizes="16x16">
 
     <style>
-        #status {
-            display: inline-block;
-            vertical-align: top;
-            margin-top: 20px;
-            margin-left: 30px;
-            font-weight: bold;
-            color: rgb(120, 120, 120);
-        }
-
-        #progress {
-            height: 20px;
-            width: 300px;
-        }
-
-        div.emscripten { text-align: center; }
-        div.emscripten_border { border: 1px solid black; }
-        div.thick_border { border: 4px solid black; }
-
-        /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
-        /* average size of droid screen 470dp x 320dp  */
-        canvas.emscripten {
-            border: 0px none;
-            background-color: transparent;
-            width: 100%;
-            height: 100%;
-            z-index: 5;
-
+        * {
+            margin: 0;
             padding: 0;
-            margin: 0 auto;
-
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            right: 0;
+            box-sizing: border-box;
         }
 
         body {
-            font-family: arial;
-            margin: 0;
-            padding: none;
-            background-color:powderblue;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
         }
 
-        .topright{
-           position:absolute;
-           top:0px;
-           right:0px;
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
         }
 
-        .bottomright {
-            position:absolute;
-            top: 40%;
-            right: 0px;
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
         }
 
-        .center {
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .game-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .game-section h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: #4a5568;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .game-frame {
+            width: 100%;
+            height: 500px;
+            border: 3px solid #e2e8f0;
+            border-radius: 15px;
+            background: #f7fafc;
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
+            overflow: hidden;
         }
 
-        .trinfo{
-           position:relative;
-           right:0px;
-           border: 1px solid black;
+        .game-frame canvas {
+            width: 100% !important;
+            height: 100% !important;
+            border: none !important;
+            border-radius: 12px !important;
+            background-color: transparent !important;
         }
 
-        .framed{
-           position:relative;
-           top:150px;
-           right:10px;
-           border: 1px solid black;
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            color: #718096;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .algorithm-info {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .algorithm-info h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: #4a5568;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .algorithm-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .algorithm-card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .algorithm-card p {
+            line-height: 1.6;
+            opacity: 0.9;
+            margin-bottom: 15px;
+        }
+
+        .complexity {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .complexity-item {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .features {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 20px;
+        }
+
+        .features h4 {
+            color: #4a5568;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #4a5568;
+        }
+
+        .feature-list li::before {
+            content: '✓';
+            color: #48bb78;
+            font-weight: bold;
+        }
+
+        .future-algorithms {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-top: 30px;
+        }
+
+        .future-algorithms h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: #4a5568;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .algorithm-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .future-algo-card {
+            background: #f7fafc;
+            border: 2px dashed #cbd5e0;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .future-algo-card:hover {
+            border-color: #667eea;
+            background: #edf2f7;
+            transform: translateY(-2px);
+        }
+
+        .future-algo-card i {
+            font-size: 2rem;
+            color: #a0aec0;
+            margin-bottom: 15px;
+        }
+
+        .future-algo-card h3 {
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+
+        .future-algo-card p {
+            color: #718096;
+            font-size: 0.9rem;
+        }
+
+        .coming-soon {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 10px;
+            display: inline-block;
+        }
+
+        .controls {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 15px;
+        }
+
+        .controls h4 {
+            color: #4a5568;
+            margin-bottom: 15px;
+        }
+
+        .control-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .control-item:last-child {
+            border-bottom: none;
+        }
+
+        .control-label {
+            font-weight: 500;
+            color: #4a5568;
+        }
+
+        .control-value {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        /* Hide original pygbag elements */
+        #transfer, #status, #progress, #crt, #system, #box, #info, #iframe, #dlg, #pyconsole {
+            display: none !important;
+        }
+
+        /* Override original canvas styles */
+        canvas.emscripten {
+            border: 0px none !important;
+            background-color: transparent !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 5 !important;
+            padding: 0 !important;
+            margin: 0 auto !important;
+            position: relative !important;
+            top: auto !important;
+            bottom: auto !important;
+            left: auto !important;
+            right: auto !important;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .game-frame {
+                height: 400px;
+            }
         }
     </style>
 
@@ -346,117 +595,193 @@ config = {
 </head>
 
 <body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-robot"></i> Snake AI</h1>
+            <p>Exploring Pathfinding Algorithms in Action</p>
+        </div>
 
-    <div id="transfer" align=center>
-<!--        <div class="spinner" id='spinner'></div> -->
+        <div class="main-content">
+            <div class="game-section">
+                <h2><i class="fas fa-gamepad"></i> Live Demo</h2>
+                <div class="game-frame">
+                    <div class="loading">
+                        <div class="spinner"></div>
+                        <p>Loading Snake Game...</p>
+                    </div>
+                </div>
+                <div class="controls">
+                    <h4><i class="fas fa-cogs"></i> Game Controls</h4>
+                    <div class="control-item">
+                        <span class="control-label">Algorithm:</span>
+                        <span class="control-value">A* Pathfinding</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="control-label">Status:</span>
+                        <span class="control-value">Auto-Playing</span>
+                    </div>
+                    <div class="control-item">
+                        <span class="control-label">Speed:</span>
+                        <span class="control-value">60 FPS</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="algorithm-info">
+                <h2><i class="fas fa-brain"></i> A* Algorithm</h2>
+
+                <div class="algorithm-card">
+                    <h3>What is A*?</h3>
+                    <p>A* is a pathfinding algorithm that finds the shortest path between two points while being more efficient than Dijkstra's algorithm by using a heuristic function to guide the search.</p>
+
+                    <div class="complexity">
+                        <div class="complexity-item">
+                            <strong>Time:</strong> O(b^d)
+                        </div>
+                        <div class="complexity-item">
+                            <strong>Space:</strong> O(b^d)
+                        </div>
+                    </div>
+                </div>
+
+                <div class="features">
+                    <h4><i class="fas fa-star"></i> Key Features</h4>
+                    <ul class="feature-list">
+                        <li>Uses heuristic function (Manhattan distance) to guide search</li>
+                        <li>Guarantees optimal path when heuristic is admissible</li>
+                        <li>More efficient than Dijkstra's for most cases</li>
+                        <li>Maintains open and closed lists for exploration</li>
+                        <li>Calculates f(n) = g(n) + h(n) for node evaluation</li>
+                    </ul>
+                </div>
+
+                <div class="features">
+                    <h4><i class="fas fa-cog"></i> How it Works</h4>
+                    <ul class="feature-list">
+                        <li>Starts from snake's current position</li>
+                        <li>Explores neighboring cells using 4-directional movement</li>
+                        <li>Calculates cost to reach each cell (g) and estimated cost to goal (h)</li>
+                        <li>Always expands the node with lowest f = g + h</li>
+                        <li>Backtracks to find the optimal path once goal is reached</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="future-algorithms">
+            <h2><i class="fas fa-rocket"></i> Future Algorithms</h2>
+            <div class="algorithm-grid">
+                <div class="future-algo-card">
+                    <i class="fas fa-route"></i>
+                    <h3>Dijkstra's Algorithm</h3>
+                    <p>Classic shortest path algorithm without heuristics</p>
+                    <div class="coming-soon">Coming Soon</div>
+                </div>
+
+                <div class="future-algo-card">
+                    <i class="fas fa-random"></i>
+                    <h3>Random Walk</h3>
+                    <p>Simple random movement for comparison</p>
+                    <div class="coming-soon">Coming Soon</div>
+                </div>
+
+                <div class="future-algo-card">
+                    <i class="fas fa-chess"></i>
+                    <h3>Minimax Algorithm</h3>
+                    <p>Game tree search for strategic planning</p>
+                    <div class="coming-soon">Coming Soon</div>
+                </div>
+
+                <div class="future-algo-card">
+                    <i class="fas fa-dna"></i>
+                    <h3>Genetic Algorithm</h3>
+                    <p>Evolutionary approach to pathfinding</p>
+                    <div class="coming-soon">Coming Soon</div>
+                </div>
+
+                <div class="future-algo-card">
+                    <i class="fas fa-network-wired"></i>
+                    <h3>Neural Network</h3>
+                    <p>Machine learning approach to snake movement</p>
+                    <div class="coming-soon">Coming Soon</div>
+                </div>
+
+                <div class="future-algo-card">
+                    <i class="fas fa-magic"></i>
+                    <h3>Q-Learning</h3>
+                    <p>Reinforcement learning for optimal policy</p>
+                    <div class="coming-soon">Coming Soon</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden pygbag elements -->
+    <div id="transfer" align=center style="display: none;">
         <div class="emscripten" id="status">Downloading...</div>
         <div class="emscripten">
             <progress value="0" max="100" id="progress"></progress>
         </div>
     </div>
 
-
-    <canvas class="emscripten" id="canvas"
-width="1px"
-height="1px"
-    oncontextmenu="event.preventDefault()" tabindex=1>
-    </canvas>
+    <canvas class="emscripten" id="canvas" width="1px" height="1px" oncontextmenu="event.preventDefault()" tabindex=1></canvas>
 
     <div id=html></div>
-
-    <div id=crt  class=bottomright >
-
-        <div id="system" hidden>
-            <div class="button-container">
-                <button id="aiostop" disabled>AIO ⏏︎</button>
-                <button id="aiopaused_true" disabled>AIO ■</button>
-                <button id="aiopaused_false" disabled>AIO ▶</button>
-                <button id="pygame_mixer_music_pause" disabled>Music ■</button>
-            </div>
-
-            <div class="button-container">
-                <div id=load_min>min</div>
-                <div id=load_avg>avg</div>
-                <div id=load_max>max</div>
-              <button id="load_rst" disabled>RESET</button>
-            </div>
-
-            <div id="level">(battery level unknown)</div>
-            <div id="stateBattery">(charging state unknown)</div>
-
-        </div>
-
-        <div id=box class="emscripten_border" hidden=true>
-
-            <div id="info" class="trinfo"></div>
-
-            <iframe id="iframe" class="framed" name="iframe"
-width="470px" height="90%"
-allowtransparency="true"
-style="z-index: 10;"
-style="background: #FFFFFF;"
-frameborder="1"
-                allowfullscreen="true"
-                webkitallowfullscreen="true"
-                msallowfullscreen="true"
-                mozallowfullscreen="true"
-                sandbox="allow-same-origin allow-top-navigation allow-scripts allow-pointer-lock"
-                allow="autoplay; fullscreen *; geolocation; microphone; camera; midi; monetization; xr-spatial-tracking; gamepad; gyroscope; accelerometer; xr; cross-origin-isolated"
-                src="https://pygame-web.github.io/archives/0.9/empty.html"
-                scrolling="yes">
-            </iframe>
-        </div>
-
-    </div>
-
-
-    <div id="dlg" hidden>
-        <input type="file" id="dlg_multifile" multiple accept="image/*">
-        <label for="dlg_multifile">Select files</label>
-    </div>
-
-    <div id="pyconsole">
-        <div id="terminal" tabIndex=1 align="left"></div>
-    </div>
+    <div id=crt class=bottomright style="display: none;"></div>
+    <div id="dlg" hidden></div>
+    <div id="pyconsole" style="display: none;"></div>
 
     <script type="application/javascript">
-
     async function custom_onload(debug_hidden) {
-        // this is called before anything python is loaded
-        // make your js customization here
         console.log(__FILE__, "custom_onload")
 
-        pyconsole.hidden = debug_hidden
-        system.hidden = debug_hidden
-        transfer.hidden = debug_hidden
-        info.hidden = debug_hidden
-        box.hidden =  debug_hidden
+        // Hide all debug elements with null checks
+        const elements = ['pyconsole', 'system', 'transfer', 'info', 'box'];
+        elements.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.hidden = true;
+            }
+        });
 
+        // Move canvas to our game frame
+        const canvas = document.getElementById('canvas');
+        const gameFrame = document.querySelector('.game-frame');
+        const loading = document.querySelector('.loading');
+
+        if (canvas && gameFrame) {
+            // Remove loading spinner
+            if (loading) {
+                loading.style.display = 'none';
+            }
+
+            // Move canvas to game frame
+            gameFrame.appendChild(canvas);
+
+            // Update canvas styles
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            canvas.style.border = 'none';
+            canvas.style.borderRadius = '12px';
+        }
     }
 
     function custom_prerun(){
-        // no python main and no (MEMFS + VFS) yet.
         console.log(__FILE__, "custom_prerun")
-
     }
 
     function custom_postrun(){
-        // python main and no VFS filesystem yet.
         console.log(__FILE__, "custom_postrun")
 
-        // prevent ff horizontal scroll
         window.addEventListener("keydown", function(e) {
             if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].indexOf(e.code) > -1) {
                 if (!python.config.debug)
                     e.preventDefault();
             }
         }, false);
-
     }
 
     function debug() {
-        // allow to gain access to dev tools from js console
-        // but only on desktop. difficult to reach when in iframe
         python.config.debug = true
         custom_onload(false)
         Module.PyRun_SimpleString("shell.uptime()")
@@ -464,12 +789,14 @@ frameborder="1"
     }
 
     function info_inline(data){
-        document.getElementById("info").innerHTML = data
+        const infoElement = document.getElementById("info");
+        if (infoElement) {
+            infoElement.innerHTML = data;
+        }
     }
 
     function info_online(url) {
-        // display info about current APK
-        fetch( url /*, options */)
+        fetch( url )
             .then((response) => response.text())
             .then((html) => {
                 info_inline(html);
@@ -480,9 +807,11 @@ frameborder="1"
     }
 
     function frame_online(url) {
-        window.frames["iframe"].location = url;
+        const iframe = window.frames["iframe"];
+        if (iframe) {
+            iframe.location = url;
+        }
     }
-
     </script>
 
 </body>
