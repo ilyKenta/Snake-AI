@@ -5,7 +5,7 @@ A beautiful web application showcasing different pathfinding algorithms in actio
 ## 🎮 Live Demo
 
 The application is automatically deployed to GitHub Pages and can be accessed at:
-**https://[your-username].github.io/Snake-AI/**
+**https://ilykenta.github.io/Snake-AI/**
 
 ## 🚀 Features
 
@@ -41,7 +41,7 @@ The application is automatically deployed to GitHub Pages and can be accessed at
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/[your-username]/Snake-AI.git
+   git clone https://github.com/ilykenta/Snake-AI.git
    cd Snake-AI
    ```
 
@@ -68,7 +68,7 @@ This project uses GitHub Actions to automatically deploy to GitHub Pages. The de
    - Installs pygbag
    - Builds the web application
    - Uploads to GitHub Pages
-3. **Live URL**: Available at `https://[your-username].github.io/Snake-AI/`
+3. **Live URL**: Available at `https://ilykenta.github.io/Snake-AI/`
 
 ### Manual Deployment
 You can also trigger deployment manually:
