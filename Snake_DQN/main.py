@@ -1,58 +1,146 @@
 import pygame
 import random
 import numpy as np
-import heapq
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import asyncio
 
+# Game constants
 snake_speed = 60
-
-
 window_x = 720
 window_y = 480
 
-
+# Colors
 black = pygame.Color(0, 0, 0)
 white = pygame.Color(255, 255, 255)
 red = pygame.Color(255, 0, 0)
 green = pygame.Color(0, 255, 0)
 blue = pygame.Color(0, 0, 255)
 
+# Game state
 game_state = 'TITLE'  # 'TITLE', 'RUNNING', 'GAME_OVER'
 
+# Game variables
 fruit_position = [random.randrange(1, (window_x // 10)) * 10,
-                      random.randrange(1, (window_y // 10)) * 10]
+                  random.randrange(1, (window_y // 10)) * 10]
 fruit_spawn = True
 snake_position = [100, 50]
 snake_body = [[100, 50],
-            [90, 50],
-            [80, 50],
-            [70, 50]]
+              [90, 50],
+              [80, 50],
+              [70, 50]]
 direction = 'RIGHT'
 change_to = direction
-
 score = 0
 
-
+# Pygame initialization
 pygame.init()
-pygame.display.set_caption('Snakes')
+pygame.display.set_caption('Snake DQN Player')
 game_window = pygame.display.set_mode((window_x, window_y))
 fps = pygame.time.Clock()
 
 
+# DQN Model (same architecture as training)
+class DQN(nn.Module):
+    def __init__(self, input_size, hidden_size, output_size):
+        super(DQN, self).__init__()
+        self.fc1 = nn.Linear(input_size, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
+        self.fc3 = nn.Linear(hidden_size, output_size)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        return self.fc3(x)
 
 
+# Load trained model
+def load_trained_model(model_path='snake_dqn_model.pth'):
+    """Load the trained DQN model"""
+    try:
+        # Initialize model with same architecture as training
+        model = DQN(12, 64, 4)  # 12 input features, 64 hidden, 4 actions
+        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+        model.eval()  # Set to evaluation mode
+        print(f"Successfully loaded model from {model_path}")
+        return model
+    except FileNotFoundError:
+        print(f"Model file {model_path} not found!")
+        print("Please train the model first using main.py")
+        return None
+    except Exception as e:
+        print(f"Error loading model: {e}")
+        return None
+
+
+# State representation (same as training)
+def get_state(snake_position, snake_body, fruit_position, direction):
+    """Create state representation for the AI"""
+    state = []
+
+    # Snake head position (normalized)
+    state.extend([snake_position[0] / window_x, snake_position[1] / window_y])
+
+    # Fruit position (normalized)
+    state.extend([fruit_position[0] / window_x, fruit_position[1] / window_y])
+
+    # Direction (one-hot encoded)
+    directions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
+    direction_one_hot = [1 if direction == d else 0 for d in directions]
+    state.extend(direction_one_hot)
+
+    # Danger detection (distance to walls and body in each direction)
+    head_x, head_y = snake_position[0] // 10, snake_position[1] // 10
+
+    # Check danger in each direction
+    for dx, dy in [(0, -1), (0, 1), (-1, 0), (1, 0)]:  # UP, DOWN, LEFT, RIGHT
+        danger = 0
+        new_x, new_y = head_x + dx, head_y + dy
+
+        # Check wall collision
+        if new_x < 0 or new_x >= window_x // 10 or new_y < 0 or new_y >= window_y // 10:
+            danger = 1
+        else:
+            # Check body collision
+            for segment in snake_body[1:]:
+                if new_x == segment[0] // 10 and new_y == segment[1] // 10:
+                    danger = 1
+                    break
+        state.append(danger)
+
+    return np.array(state, dtype=np.float32)
+
+
+# Get action from trained model
+def get_dqn_move(model, snake_body, fruit_position, snake_position, direction):
+    """Get the best action from the trained DQN model"""
+    if model is None:
+        # Fallback to random if model not loaded
+        return random.choice(['UP', 'DOWN', 'LEFT', 'RIGHT'])
+
+    # Get current state
+    state = get_state(snake_position, snake_body, fruit_position, direction)
+
+    # Convert to tensor and get Q-values
+    with torch.no_grad():
+        state_tensor = torch.FloatTensor(state).unsqueeze(0)
+        q_values = model(state_tensor)
+        action = q_values.argmax().item()
+
+    # Convert action index to direction
+    directions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
+    return directions[action]
 
 
 def show_score(choice, color, font, size):
     score_font = pygame.font.SysFont(font, size)
     score_surface = score_font.render('Score : ' + str(score), True, color)
-
     score_rect = score_surface.get_rect()
-
     game_window.blit(score_surface, score_rect)
 
 
-# --- Button Drawing Function ---
+# Button Drawing Function
 def draw_button(surface, text, x, y, width, height, inactive_color, active_color, action=None):
     mouse = pygame.mouse.get_pos()
     click = pygame.mouse.get_pressed()
@@ -69,18 +157,32 @@ def draw_button(surface, text, x, y, width, height, inactive_color, active_color
     surface.blit(text_surface, text_rect)
 
 
-# --- Title Screen ---
+# Title Screen
 def title_screen():
     game_window.fill(black)
     title_font = pygame.font.SysFont('times new roman', 60)
-    title_surface = title_font.render('Snake Game', True, green)
+    title_surface = title_font.render('Snake DQN Player', True, green)
     title_rect = title_surface.get_rect(center=(window_x / 2, window_y / 4))
     game_window.blit(title_surface, title_rect)
-    draw_button(game_window, 'Start Game', window_x / 2 - 100, window_y / 2, 200, 50, blue, green, start_game)
+
+    # Show model status
+    status_font = pygame.font.SysFont('times new roman', 24)
+    if dqn_model is not None:
+        status_text = "DQN Model: Loaded ✓"
+        status_color = green
+    else:
+        status_text = "DQN Model: Not Found ✗"
+        status_color = red
+
+    status_surface = status_font.render(status_text, True, status_color)
+    status_rect = status_surface.get_rect(center=(window_x / 2, window_y / 2 - 30))
+    game_window.blit(status_surface, status_rect)
+
+    draw_button(game_window, 'Start Game', window_x / 2 - 100, window_y / 2 + 20, 200, 50, blue, green, start_game)
     pygame.display.update()
 
 
-# --- Game Over Screen ---
+# Game Over Screen
 def game_over_screen():
     game_window.fill(black)
     font = pygame.font.SysFont('times new roman', 50)
@@ -91,7 +193,7 @@ def game_over_screen():
     pygame.display.update()
 
 
-# --- Game Start/Restart Logic ---
+# Game Start/Restart Logic
 def start_game():
     global game_state
     game_state = 'RUNNING'
@@ -109,129 +211,9 @@ def restart_game():
     game_state = 'RUNNING'
 
 
-# Replace the game_over() function with:
 def game_over():
     global game_state
     game_state = 'GAME_OVER'
-
-class Node:
-    def __init__(self, row, col, direction, initial_move, g, f):
-        self.row = row
-        self.col = col
-        self.direction = direction
-        self.initial_move = initial_move
-        self.g = g
-        self.f = f
-
-    def __lt__(self, other):
-        return self.f < other.f
-
-def reverse_direction(direction: int) -> int:
-    return {
-        0: 1,  # up -> down
-        1: 0,  # down -> up
-        2: 3,  # left -> right
-        3: 2   # right -> left
-    }.get(direction, -1)
-
-def out_of_bounds(board: np.ndarray, row: int, col: int) -> bool:
-    rows, cols = board.shape
-    if row < 0 or col < 0 or row >= rows or col >= cols:
-        return False
-    else:
-        return True
-
-def available_space(board: np.ndarray, row: int, col: int) -> bool:
-    return board[row, col] == 0 or board[row, col] == 2
-
-def is_valid_move(board: np.ndarray, row: int, col: int, visited, direction) -> bool:
-    if not out_of_bounds(board, row, col):
-        return False
-    if not available_space(board, row, col):
-        return False
-    if visited[row][col][direction]:
-        return False
-    return True
-
-def estimate_heuristic(current_pos, target_pos) -> int:
-    x, y = current_pos
-    manhattan_dist = abs(x - target_pos[0]) + abs(y - target_pos[1])
-    return int(manhattan_dist)
-
-def short_move(board: np.ndarray, start, target):
-    rows, cols = board.shape
-
-    directions = [
-        (0, -1),  # up
-        (0, 1),   # down
-        (-1, 0),  # left
-        (1, 0)    # right
-    ]
-
-    visited = np.zeros((rows, cols, 4), dtype=bool)
-    open_list = []
-
-    for i, (dx, dy) in enumerate(directions):
-        new_row = start[1] + dy
-        new_col = start[0] + dx
-        if (new_col, new_row) == target and is_valid_move(board, new_row, new_col, visited, i):
-            return [i, 1]
-
-        visited[start[1], start[0], i] = True
-
-        if is_valid_move(board, new_row, new_col, visited, i):
-            g_cost = 1
-            h_cost = estimate_heuristic((new_col, new_row), target)
-            heapq.heappush(open_list, Node(new_row, new_col, i, i, g_cost, g_cost + h_cost))
-            visited[new_row, new_col, i] = True
-            visited[start[1], start[0], reverse_direction(i)] = True
-
-    while open_list:
-        current = heapq.heappop(open_list)
-
-        for i, (dx, dy) in enumerate(directions):
-            new_row = current.row + dy
-            new_col = current.col + dx
-
-            if (new_col, new_row) == target:
-                return [current.initial_move, current.g]
-
-            if is_valid_move(board, new_row, new_col, visited, i):
-                g_cost = current.g + 1
-                h_cost = estimate_heuristic((new_col, new_row), target)
-                heapq.heappush(open_list, Node(new_row, new_col, i, current.initial_move, g_cost, g_cost + h_cost))
-                visited[new_row, new_col, i] = True
-                visited[current.row, current.col, reverse_direction(i)] = True
-
-    return [-1, 0]
-
-def print_board(board):
-    output = ""
-    for row in board:
-        for cell in row:
-            output += str(cell) + " "
-        output += "\n"
-
-    print(output)
-
-
-def get_move(snake_body, fruit_position, snake_position, direction):
-    board = np.zeros((window_y//10, window_x//10), dtype=int)
-    fruit_x, fruit_y = fruit_position
-    fruit_x = fruit_x//10
-    fruit_y = fruit_y//10
-    board[fruit_y][fruit_x] = 2
-    for i in snake_body:
-        board[(i[1]//10)][(i[0]//10)] = 1
-
-    short = short_move(board, (snake_position[0]//10, snake_position[1]//10), (fruit_x, fruit_y))[0]
-
-
-
-    directions = ['UP', 'DOWN', 'LEFT', 'RIGHT']
-    dir = directions[short]
-
-    return dir
 
 
 def get_valid_fruit_position(snake_body):
@@ -250,9 +232,15 @@ def get_valid_fruit_position(snake_body):
         if valid_position:
             return [fruit_x, fruit_y]
 
+
 # Main Function
 async def main():
     global score, fruit_position, direction, fruit_spawn
+
+    # Load the trained model
+    global dqn_model
+    dqn_model = load_trained_model()
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -268,7 +256,9 @@ async def main():
             await asyncio.sleep(0)
             continue
 
-        change_to = get_move(snake_body, fruit_position, snake_position, direction)
+        # Get move from DQN model (replaces A* get_move function)
+        change_to = get_dqn_move(dqn_model, snake_body, fruit_position, snake_position, direction)
+
         if change_to == 'UP' and direction != 'DOWN':
             direction = 'UP'
         if change_to == 'DOWN' and direction != 'UP':
@@ -289,8 +279,6 @@ async def main():
             snake_position[0] += 10
 
         # Snake body growing mechanism
-        # if fruits and snakes collide then scores will be
-        # incremented by 10
         snake_body.insert(0, list(snake_position))
         if snake_position[0] == fruit_position[0] and snake_position[1] == fruit_position[1]:
             score += 10
@@ -322,16 +310,21 @@ async def main():
             if snake_position[0] == block[0] and snake_position[1] == block[1]:
                 game_over()
 
-        # displaying score continuously
+        # Display score and model info
         show_score(1, white, 'times new roman', 20)
 
+        # Show model status during gameplay
+        font = pygame.font.SysFont('times new roman', 16)
+        if dqn_model is not None:
+            model_text = font.render('DQN AI Playing', True, green)
+        else:
+            model_text = font.render('Random AI (No Model)', True, red)
+        game_window.blit(model_text, (10, 30))
 
         pygame.display.update()
         fps.tick(snake_speed)
         await asyncio.sleep(0)
 
 
-asyncio.run(main())
-
-
-
+if __name__ == "__main__":
+    asyncio.run(main())
